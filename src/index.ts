@@ -1,76 +1,67 @@
-import * as json2csv from 'json2csv';
-import * as fs from 'fs';
 import puppeteer from 'puppeteer';
-import cheerio from 'cheerio';
 
 
 (async () => {
+
+    await handleListOfJavascriptLinks();
+})();
+
+
+// This does not work.
+// When you navigate, the context is gone and it can't navigate to any additional ones
+async function clickLinkHandles() {
     const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
 
-    await page.goto('http://pizza.com');
+    const baseDomain = 'http://pizza.com';
 
-    // Search by element
-    const title = await page.$eval('title', element => element.textContent);
+    await page.goto(`${baseDomain}/pizza-news`);
 
-    console.log('title', title);
+    // Get all the link elements
+    const linkHandles = await page.$$('.word-only a');
 
-    // Search by class
-    const homeButton = await page.$eval('.home_link', element => element.textContent);;
-
-    console.log('Home button', homeButton);
-
-    // Search by class and child
-    const topNavButtons = await page.$eval('.word-only li', element => element.textContent);
-
-    console.log('top nav buttons', topNavButtons);
-
-    // Search by property
-    const pizzaNews = await page.$eval('a[href="/pizza-news"]', element => element.textContent);
-
-    console.log('pizza news', pizzaNews);
-
-    // Search by property and find only the last
-    const lastNavLink = await page.$$eval('li a', elements => elements[elements.length - 1].textContent);
-
-    console.log('last  nav link', lastNavLink);
-
-    // Get propery from element
-    const funFactsLink = await page.$eval('.last a', element => element.getAttribute('href'));
-
-    console.log('fun facts link', funFactsLink);
-
-    // Get a list of all 'li a' text
-    const listElements: any[] = await page.evaluate(() => Array.from(document.querySelectorAll('li a'), element => element.textContent));
-
-    console.log('list elements', listElements);
-
-    const data = {
-        titleText: title,
-        homeButtonText: homeButton,
-        topNavButtonsText: topNavButtons,
-        pizzaNewsText: pizzaNews,
-        listElementsArray: listElements
-    };
-
-    const csv = json2csv.parse(data);
-
-    await page.click('a[href="/pizza-news"]');
-    // Wait for 3.5 seconds
-    await page.waitFor(3500);
-
-    // ...or just use cheerio
-    const bodyHtml = await page.evaluate(() => document.body.innerHTML);
-    const $ = cheerio.load(bodyHtml);
-    console.log('pizza news type-post', $('.type-post b').text());
-
-    fs.writeFile('data.csv', csv, (err) => {
-        if (err) {
-            return console.log('an error happened while saving the file', err);
-        }
-        console.log('file saved successfully!');
-    });
-
+    for (let linkHandle of linkHandles) {
+        await linkHandle.click();
+    }
 
     await browser.close();
-})();
+
+}
+
+
+// This works great if it's a link
+async function getLinksAndNavigate() {
+    const browser = await puppeteer.launch({ headless: false });
+    const page = await browser.newPage();
+
+    const baseDomain = 'http://pizza.com';
+
+    await page.goto(`${baseDomain}/pizza-news`);
+
+    const links = await page.evaluate(() => Array.from(document.querySelectorAll('.word-only a'), element => element.getAttribute('href')));
+    for (let link of links) {
+        console.log('link', link);
+        await page.goto(`${baseDomain}${link}`);
+    }
+
+    await browser.close();
+
+}
+
+// This is for a list of javascript links...most of the time.
+async function handleListOfJavascriptLinks() {
+    const browser = await puppeteer.launch({ headless: false });
+    const page = await browser.newPage();
+
+    await page.goto(`https://www.miamidade.realforeclose.com/index.cfm?zaction=USER&zmethod=CALENDAR`);
+    const dayids = await page.$$eval('.CALSELF', elements => elements.map(element => element.getAttribute('dayid')));
+
+    const baseDayPage = `https://www.miamidade.realforeclose.com/index.cfm?zaction=AUCTION&Zmethod=PREVIEW&AUCTIONDATE=`;
+
+    for (let dayid of dayids) {
+        await page.goto(`${baseDayPage}${dayid}`);
+    }
+
+    await browser.close();
+
+}
