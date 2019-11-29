@@ -3,7 +3,8 @@ import puppeteer from 'puppeteer';
 
 (async () => {
 
-    await handleListOfJavascriptLinks();
+    // await handleListOfJavascriptLinks();
+    await clickLinkHandles();
 })();
 
 
